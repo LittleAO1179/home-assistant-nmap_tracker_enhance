@@ -1,6 +1,7 @@
 {
-  "name": "Arpscan Device Tracker",
-  "country": "NL",
-  "render_readme": false,
-  "domains": ["device_tracker"]
+  "name": "Nmap Device Tracker",
+  "country": "CN",
+  "render_readme": true,
+  "domains": ["device_tracker"],
+  "homeassistant": "2023.1.0"
 }

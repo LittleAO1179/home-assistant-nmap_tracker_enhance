@@ -1,12 +1,12 @@
 {
   "domain": "arpscan_tracker",
-  "name": "Arpscan tracker",
-  "version": "1.0.7",
-  "documentation": "https://github.com/cyberjunky/home-assistant-arpscan_tracker",
-  "issue_tracker": "https://github.com/cyberjunky/home-assistant-arpscan_tracker/issues",
+  "name": "Nmap Device Tracker",
+  "version": "1.0.0",
+  "documentation": "https://github.com/LittleAO1179/home-assistant-nmap_tracker_enhance",
+  "issue_tracker": "https://github.com/LittleAO1179/home-assistant-nmap_tracker_enhance/issues",
   "requirements": [],
   "dependencies": [],
   "codeowners": [
-    "@cyberjunky"
+    "@limingyang"
   ]
 }
