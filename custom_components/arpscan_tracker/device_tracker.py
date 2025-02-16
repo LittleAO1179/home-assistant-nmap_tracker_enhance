@@ -24,7 +24,7 @@ CONF_EXCLUDE = 'exclude'
 CONF_INCLUDE = 'include'
 CONF_OPTIONS = 'scan_options'
 CONF_NETWORK = 'network'
-DEFAULT_OPTIONS = '-n -PS80,443,5353,5228,62078 -PA80,443,5353 --min-rate 2000 --max-retries 2 -T4 --host-timeout 10s'
+DEFAULT_OPTIONS = '-R -sP -PS5353,80,443 -PU5353 --dns-servers 192.168.3.1,8.8.8.8,8.8.4.4 --system-dns'
 DEFAULT_NETWORK = '192.168.1.0/24'
 
 MIN_TIME_BETWEEN_SCANS = timedelta(seconds=5)
@@ -122,10 +122,22 @@ class ArpScanDeviceScanner(DeviceScanner):
             exclude_hosts = []
 
         # 构建扫描命令
-        cmd = f"nmap {options} {self._network}"
-        _LOGGER.debug("执行命令: %s", cmd)
-        
-        scandata = subprocess.getoutput(cmd)
+        network = self._network
+        if '/' in network:  # 如果是子网
+            base_ip = network.split('/')[0].rsplit('.', 1)[0]
+            # 分批扫描，每批32个IP
+            all_scandata = []
+            for i in range(0, 256, 32):
+                ip_range = f"{base_ip}.{i}-{min(i+31, 255)}"
+                cmd = f"nmap {options} {ip_range}"
+                _LOGGER.debug("执行命令: %s", cmd)
+                scandata = subprocess.getoutput(cmd)
+                all_scandata.append(scandata)
+            scandata = '\n'.join(all_scandata)
+        else:  # 单个IP
+            cmd = f"nmap {options} {network}"
+            _LOGGER.debug("执行命令: %s", cmd)
+            scandata = subprocess.getoutput(cmd)
         _LOGGER.debug("扫描数据 %s", scandata)
 
         now = dt_util.now()
@@ -133,21 +145,34 @@ class ArpScanDeviceScanner(DeviceScanner):
         # 解析 nmap 输出
         current_ip = None
         current_mac = None
+        current_hostname = None
+        has_valid_hostname = False
         
         for line in scandata.splitlines():
-            # 匹配 IP 地址
-            ip_match = re.search(r'Nmap scan report for ([0-9]+(?:\.[0-9]+){3})', line)
-            if ip_match:
-                current_ip = ip_match.group(1)
-                current_mac = None
-                continue
-                
-            # 匹配主机名
+            # 匹配带主机名的IP
             hostname_match = re.search(r'Nmap scan report for ([^\(]+)\(([0-9]+(?:\.[0-9]+){3})\)', line)
             if hostname_match:
                 current_hostname = hostname_match.group(1).strip()
                 current_ip = hostname_match.group(2)
                 current_mac = None
+                has_valid_hostname = True
+                continue
+                
+            # 匹配普通IP
+            ip_match = re.search(r'Nmap scan report for ([0-9]+(?:\.[0-9]+){3})', line)
+            if ip_match:
+                if has_valid_hostname:  # 如果之前找到了有效的主机名，就添加该设备
+                    last_results.append(Device(
+                        mac=current_mac if current_mac else f"NO_MAC_{current_ip.replace('.', '_')}",
+                        name=current_hostname,
+                        ip=current_ip,
+                        last_update=now,
+                        hostname=current_hostname
+                    ))
+                current_ip = ip_match.group(1)
+                current_mac = None
+                current_hostname = None
+                has_valid_hostname = False
                 continue
 
             # 匹配 MAC 地址
@@ -155,8 +180,8 @@ class ArpScanDeviceScanner(DeviceScanner):
             if mac_match:
                 current_mac = mac_match.group(1)
 
-            # 如果已经有IP地址，就可以添加设备了
-            if current_ip:
+            # 如果有效主机名和MAC地址，就添加设备
+            if current_ip and has_valid_hostname:
                 if include_hosts and current_ip not in include_hosts:
                     _LOGGER.debug("已排除 %s", current_ip)
                     current_ip = None
@@ -172,22 +197,20 @@ class ArpScanDeviceScanner(DeviceScanner):
                     current_mac = f"NO_MAC_{current_ip.replace('.', '_')}"
                     _LOGGER.debug("设备 %s 无法获取MAC地址，使用IP作为标识", current_ip)
 
-                # 获取主机名（如果没有，则使用IP）
-                hostname = getattr(current_hostname, '', current_ip)
-
                 # 添加设备到结果列表
                 last_results.append(Device(
                     mac=current_mac,
-                    name=current_mac.replace(':', '') if ':' in current_mac else current_mac,
+                    name=current_hostname,  # 使用主机名作为设备名称
                     ip=current_ip,
                     last_update=now,
-                    hostname=hostname
+                    hostname=current_hostname
                 ))
                 
                 # 重置当前设备信息
                 current_ip = None
                 current_mac = None
                 current_hostname = None
+                has_valid_hostname = False
 
         self.last_results = last_results
 
