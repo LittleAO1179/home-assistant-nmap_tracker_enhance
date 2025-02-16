@@ -24,7 +24,7 @@ CONF_EXCLUDE = 'exclude'
 CONF_INCLUDE = 'include'
 CONF_OPTIONS = 'scan_options'
 CONF_NETWORK = 'network'
-DEFAULT_OPTIONS = '-sn -n --host-timeout 5s'
+DEFAULT_OPTIONS = '-n -PS80,443,5353,5228,62078 -PA80,443,5353 --min-rate 2000 --max-retries 2 -T4 --host-timeout 10s'
 DEFAULT_NETWORK = '192.168.1.0/24'
 
 MIN_TIME_BETWEEN_SCANS = timedelta(seconds=5)
