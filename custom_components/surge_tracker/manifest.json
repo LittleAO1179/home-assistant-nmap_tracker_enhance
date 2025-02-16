@@ -1,10 +1,10 @@
 {
-  "domain": "arpscan_tracker",
-  "name": "Nmap Device Tracker",
+  "domain": "surge_tracker",
+  "name": "Surge Device Tracker",
   "version": "1.0.0",
   "documentation": "https://github.com/LittleAO1179/home-assistant-nmap_tracker_enhance",
   "issue_tracker": "https://github.com/LittleAO1179/home-assistant-nmap_tracker_enhance/issues",
-  "requirements": [],
+  "requirements": ["requests"],
   "dependencies": [],
   "codeowners": [
     "@limingyang"
